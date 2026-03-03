@@ -6,7 +6,7 @@ from app.models import user
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.task import TaskCreate, TaskResponse
+from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.models.user import User
 from app.models.task import Task
 from app.core.security import hash_password, verify_password, create_access_token
@@ -66,3 +66,40 @@ def create_task(
 def list_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     tasks = db.query(Task).filter(Task.user_id == current_user.id).order_by(Task.id.desc()).all()
     return tasks
+
+@app.patch("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    task_update: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    task = get_task_or_404(task_id, db, int(current_user.id))
+
+    if task_update.title is not None:
+        task.title = task_update.title
+    if task_update.description is not None:
+        task.description = task_update.description
+    if task_update.done is not None:
+        task.done = task_update.done
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    task = get_task_or_404(task_id, db, int(current_user.id))
+    db.delete(task)
+    db.commit()
+    return None
+
+def get_task_or_404(task_id: int, db: Session, user_id: int) -> Task:
+    task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
