@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv
+venv
+.env.*
+.vscode
+.idea
+node_modules
+alembic/versions/__pycache__
