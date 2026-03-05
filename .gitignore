@@ -20,3 +20,7 @@ pg_data/
 pgdata/
 alembic/versions/__pycache__/
 *.log
+
+# Test database
+test.db
+test.db-journal

@@ -1,0 +1,51 @@
+from tests.conftest import unique_email
+
+
+def test_register_login_and_create_task(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    r = client.post("/api/v1/users", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["email"] == email
+
+    r = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert r.status_code == 200, r.text
+    token = r.json()["access_token"]
+    assert token
+
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.post(
+        "/api/v1/tasks",
+        json={"title": "Mi primera task", "description": "testing"},
+        headers=auth_headers,
+    )
+    assert r.status_code in (200, 201), r.text
+    task = r.json()
+    assert task["title"] == "Mi primera task"
+
+    r = client.get("/api/v1/tasks", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    tasks = r.json()
+    assert isinstance(tasks, list)
+    assert any(t["title"] == "Mi primera task" for t in tasks)
+
+
+def test_login_wrong_password_fails(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    r = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": "wrongpass"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert r.status_code in (400, 401), r.text
