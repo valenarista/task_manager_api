@@ -100,3 +100,62 @@ def test_user_cannot_access_anothers_users_task(client):
         headers=auth_headers2,
     )
     assert r.status_code == 404, r.text
+
+def test_duplicate_email_registration_fails(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    r = client.post("/api/v1/users", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+
+    r = client.post("/api/v1/users", json={"email": email, "password": password})
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"] == "Email already registered"
+
+def test_access_protected_route_without_token_fails(client):
+    r = client.get("/api/v1/tasks")
+    assert r.status_code == 401, r.text
+
+def test_me_without_token_fails(client):
+    r = client.get("/api/v1/me")
+    assert r.status_code == 401, r.text
+
+def test_me_with_token_returns_user_info(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/v1/me", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["email"] == email
+
+def test_update_nonexistent_task_returns_404(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.patch(
+        "/api/v1/tasks/9999",
+        json={"done": True},
+        headers=auth_headers,
+    )
+    assert r.status_code == 404, r.text
+
+def test_delete_nonexistent_task_returns_404(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.delete(
+        "/api/v1/tasks/9999",
+        headers=auth_headers,
+    )
+    assert r.status_code == 404, r.text
