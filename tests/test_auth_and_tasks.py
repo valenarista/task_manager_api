@@ -32,8 +32,12 @@ def test_register_login_and_create_task(client):
 
     r = client.get("/api/v1/tasks", headers=auth_headers)
     assert r.status_code == 200, r.text
-    tasks = r.json()
+    data = r.json()
+    tasks = data["items"]
     assert isinstance(tasks, list)
+    assert data["total"] >= 1
+    assert data["skip"] == 0
+    assert data["limit"] == 10
     assert any(t["title"] == "Mi primera task" for t in tasks)
 
 
@@ -85,7 +89,8 @@ def test_user_cannot_access_anothers_users_task(client):
 
     r = client.get("/api/v1/tasks", headers=auth_headers2)
     assert r.status_code == 200, r.text
-    tasks_2 = r.json()
+    data_2 = r.json()
+    tasks_2 = data_2["items"]
     assert all(task["id"] != task1_id for task in tasks_2)
 
     r = client.patch(
@@ -159,3 +164,103 @@ def test_delete_nonexistent_task_returns_404(client):
         headers=auth_headers,
     )
     assert r.status_code == 404, r.text
+
+def test_list_tasks_with_done_filter(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.post(
+        "/api/v1/tasks",
+        json={"title": "Task pendiente", "description": "A"},
+        headers=auth_headers,
+    )
+    assert r.status_code in (200, 201), r.text
+    task_1 = r.json()
+
+    r = client.post(
+        "/api/v1/tasks",
+        json={"title": "Task completada", "description": "B"},
+        headers=auth_headers,
+    )
+    assert r.status_code in (200, 201), r.text
+    task_2 = r.json()
+
+    r = client.patch(
+        f"/api/v1/tasks/{task_2['id']}",
+        json={"done": True},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+
+    r = client.get("/api/v1/tasks?done=true", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    tasks = data["items"]
+    assert data["total"] >= 1
+    assert all(task["done"] is True for task in tasks)
+    assert any(task["id"] == task_2["id"] for task in tasks)
+
+    r = client.get("/api/v1/tasks?done=false", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    tasks = data["items"]
+    assert data["total"] >= 1
+    assert all(task["done"] is False for task in tasks)
+    assert any(task["id"] == task_1["id"] for task in tasks)
+
+def test_list_tasks_with_pagination(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    for i in range(3):
+        r = client.post(
+            "/api/v1/tasks",
+            json={"title": f"Task {i}", "description": f"Desc {i}"},
+            headers=auth_headers,
+        )
+        assert r.status_code in (200, 201), r.text
+
+    r = client.get("/api/v1/tasks?skip=0&limit=2", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    tasks = data["items"]
+    assert len(tasks) == 2
+    assert data["total"] >= 3
+    assert data["skip"] == 0
+    assert data["limit"] == 2
+
+def test_list_limits_max_100(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/v1/tasks?limit=150", headers=auth_headers)
+    assert r.status_code == 422, r.text
+
+def test_list_limits_min_1(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/v1/tasks?limit=0", headers=auth_headers)
+    assert r.status_code == 422, r.text
+
+def test_list_skip_min_0(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/v1/tasks?skip=-1", headers=auth_headers)
+    assert r.status_code == 422, r.text
