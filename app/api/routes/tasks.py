@@ -6,12 +6,15 @@ from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskListResponse, TaskResponse, TaskUpdate
-
+import logging
+ 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 def get_task_or_404(task_id: int, db: Session, user_id: int) -> Task:
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if task is None:
+        logger.warning("Task not found: task_id=%s user_id=%s", task_id, user_id)
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
@@ -29,6 +32,7 @@ def create_task(
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    logger.info("Task created: user_id=%s title=%s", current_user.id, task.title)
     return db_task
 
 @router.get("", response_model=TaskListResponse)
@@ -52,7 +56,7 @@ def list_tasks(
         .limit(limit)
         .all()
     )
-
+    logger.info("Retrieved tasks for user_id: %s", current_user.id)
     return {
         "items": items,
         "total": total,
@@ -78,6 +82,7 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    logger.info("Task updated: task_id=%s user_id=%s", task.id, current_user.id)
     return task
 
 @router.delete("/{task_id}", status_code=204)
@@ -89,4 +94,5 @@ def delete_task(
     task = get_task_or_404(task_id, db, int(current_user.id))
     db.delete(task)
     db.commit()
+    logger.info("Task deleted: task_id=%s user_id=%s", task.id, current_user.id)
     return None
