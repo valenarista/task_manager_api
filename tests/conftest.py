@@ -6,14 +6,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 
+TEST_DB_URL = "sqlite+pysqlite:///:memory:"
+os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
+os.environ.setdefault("SECRET_KEY", "test_secret_key")
+os.environ.setdefault("ALGORITHM", "HS256")
+os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+
 from app.main import app
 from app.db.base import Base
 from app.db.session import get_db
 from app.models import user
 from app.models import task
-
-
-TEST_DB_URL = "sqlite+pysqlite:///:memory:"
 
 engine = create_engine(
     TEST_DB_URL,
@@ -30,14 +33,6 @@ def override_get_db():
         yield db
     finally:
         db.close()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _set_test_env():
-    os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
-    os.environ.setdefault("SECRET_KEY", "test_secret_key")
-    os.environ.setdefault("ALGORITHM", "HS256")
-    os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 
 @pytest.fixture(scope="function")

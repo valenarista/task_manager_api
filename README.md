@@ -143,6 +143,18 @@ Run the full test suite with:
 pytest
 ```
 
+On Windows PowerShell, you can run tests with one command (it reuses `.venv`, installs dependencies if needed, and executes `pytest`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
+```
+
+Pass specific pytest arguments:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1 -q tests\test_auth_and_tasks.py
+```
+
 ### Break down into end to end tests
 
 The tests simulate realistic user flows such as:
@@ -239,4 +251,3 @@ alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ## ✍️ Authors <a name = "authors"></a>
 
 - **Valentin Arista** - Backend development, architecture, testing, Dockerization, CI, and deployment
-
