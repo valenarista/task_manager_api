@@ -24,8 +24,8 @@ def get_current_user(
         email: str | None = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    except JWTError as err:
+        raise credentials_exception from err
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception

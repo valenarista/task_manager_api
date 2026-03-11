@@ -1,11 +1,13 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
-from app.core.security import hash_password
-from sqlalchemy.exc import IntegrityError
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
@@ -21,10 +23,10 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     try: 
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
         logger.warning("Failed to create user with email: %s", user.email)
-        raise HTTPException(status_code=409, detail="Email already registered")
+        raise HTTPException(status_code=409, detail="Email already registered") from err
     except Exception:
         db.rollback()
         logger.exception("Unexpected error while creating user with email: %s", user.email)

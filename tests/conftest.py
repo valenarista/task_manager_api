@@ -1,10 +1,11 @@
 import os
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 TEST_DB_URL = "sqlite+pysqlite:///:memory:"
 os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
@@ -12,11 +13,9 @@ os.environ.setdefault("SECRET_KEY", "test_secret_key")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
-from app.main import app
 from app.db.base import Base
 from app.db.session import get_db
-from app.models import user
-from app.models import task
+from app.main import app
 
 engine = create_engine(
     TEST_DB_URL,

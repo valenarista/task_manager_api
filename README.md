@@ -108,7 +108,7 @@ python -m venv .venv
 Activate the environment and install dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 Create a `.env` file based on `.env.example` and configure your local values.
@@ -171,9 +171,32 @@ Example:
 pytest tests/test_auth_and_tasks.py
 ```
 
-### And coding style tests
+### Quality checks (lint, types, coverage, hooks)
 
-At the moment, the project includes functional and integration-style API tests. Static code quality tools such as Ruff, Black, or mypy can be added later as future improvements.
+Run all quality checks with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\quality-check.ps1
+```
+
+The script runs:
+
+- `ruff check .`
+- `mypy app`
+- `pytest --cov=app --cov-report=term-missing --cov-fail-under=85`
+- `pre-commit run --all-files`
+
+Optional (skip hooks):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\quality-check.ps1 -SkipPreCommit
+```
+
+Install git hooks once:
+
+```bash
+pre-commit install
+```
 
 ## 🎈 Usage <a name="usage"></a>
 
