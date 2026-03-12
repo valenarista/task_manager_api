@@ -1,3 +1,10 @@
+import pytest
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
+
+from app.api.routes.users import create_user as create_user_route
+from app.core.security import create_access_token
+from app.schemas.user import UserCreate
 from tests.conftest import unique_email
 
 
@@ -264,3 +271,149 @@ def test_list_skip_min_0(client):
 
     r = client.get("/api/v1/tasks?skip=-1", headers=auth_headers)
     assert r.status_code == 422, r.text
+
+
+def test_update_task_title_and_description(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post(
+        "/api/v1/tasks",
+        json={"title": "Old title", "description": "Old description"},
+        headers=auth_headers,
+    )
+    assert create_response.status_code in (200, 201), create_response.text
+    task_id = create_response.json()["id"]
+
+    update_response = client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"title": "New title", "description": "New description"},
+        headers=auth_headers,
+    )
+    assert update_response.status_code == 200, update_response.text
+    data = update_response.json()
+    assert data["title"] == "New title"
+    assert data["description"] == "New description"
+
+
+def test_delete_existing_task_succeeds(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    token = create_user_and_login(client, email, password)
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post(
+        "/api/v1/tasks",
+        json={"title": "Task to delete", "description": "Delete me"},
+        headers=auth_headers,
+    )
+    assert create_response.status_code in (200, 201), create_response.text
+    task_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/api/v1/tasks/{task_id}", headers=auth_headers)
+    assert delete_response.status_code == 204, delete_response.text
+
+    list_response = client.get("/api/v1/tasks", headers=auth_headers)
+    assert list_response.status_code == 200, list_response.text
+    tasks = list_response.json()["items"]
+    assert all(task["id"] != task_id for task in tasks)
+
+
+def test_me_with_invalid_token_fails(client):
+    auth_headers = {"Authorization": "Bearer invalid.token.value"}
+    response = client.get("/api/v1/me", headers=auth_headers)
+    assert response.status_code == 401, response.text
+
+
+def test_me_with_token_without_sub_fails(client):
+    token = create_access_token(data={"foo": "bar"})
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.get("/api/v1/me", headers=auth_headers)
+    assert response.status_code == 401, response.text
+
+
+def test_me_with_token_for_nonexistent_user_fails(client):
+    token = create_access_token(data={"sub": "ghost@example.com"})
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.get("/api/v1/me", headers=auth_headers)
+    assert response.status_code == 401, response.text
+
+
+def test_create_user_handles_integrity_error_with_409():
+    class FakeQuery:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def first(self):
+            return None
+
+    class FakeDb:
+        def __init__(self):
+            self.rollback_called = False
+
+        def query(self, *args, **kwargs):
+            return FakeQuery()
+
+        def add(self, obj):
+            return None
+
+        def commit(self):
+            raise IntegrityError("insert into users", {"email": "x"}, Exception("dup"))
+
+        def rollback(self):
+            self.rollback_called = True
+
+        def refresh(self, obj):
+            return None
+
+    db = FakeDb()
+    user = UserCreate(email=unique_email(), password="StrongPass1")
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_user_route(user=user, db=db)
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "Email already registered"
+    assert db.rollback_called is True
+
+
+def test_create_user_reraises_unexpected_exception():
+    class FakeQuery:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def first(self):
+            return None
+
+    class FakeDb:
+        def __init__(self):
+            self.rollback_called = False
+
+        def query(self, *args, **kwargs):
+            return FakeQuery()
+
+        def add(self, obj):
+            return None
+
+        def commit(self):
+            raise RuntimeError("db unavailable")
+
+        def rollback(self):
+            self.rollback_called = True
+
+        def refresh(self, obj):
+            return None
+
+    db = FakeDb()
+    user = UserCreate(email=unique_email(), password="StrongPass1")
+
+    with pytest.raises(RuntimeError, match="db unavailable"):
+        create_user_route(user=user, db=db)
+
+    assert db.rollback_called is True
