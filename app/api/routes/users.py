@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("", response_model=UserResponse)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreate, db: Session = Depends(get_db)) -> User:
     logger.info("Attempting to create user with email: %s", user.email)
     if db.query(User).filter(User.email == user.email).first():
         logger.warning("Email already registered: %s", user.email)

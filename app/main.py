@@ -1,7 +1,8 @@
 import logging
 import time
+from collections.abc import Awaitable, Callable
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 
 from app.api.router import api_router
 from app.core.logging_config import setup_logging
@@ -13,7 +14,10 @@ app = FastAPI()
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
     start_time = time.time()
 
     try:
@@ -45,5 +49,5 @@ app.include_router(api_router)
 
 
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
     return {"message": "API is running"}

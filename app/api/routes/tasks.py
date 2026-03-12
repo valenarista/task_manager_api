@@ -24,7 +24,7 @@ def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+) -> Task:
     db_task = Task(
         title=task.title,
         description=task.description,
@@ -43,7 +43,7 @@ def list_tasks(
     done: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, object]:
     query = db.query(Task).filter(Task.user_id == current_user.id)
 
     if done is not None:
@@ -71,7 +71,7 @@ def update_task(
     task_update: TaskUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+) -> Task:
     task = get_task_or_404(task_id, db, int(current_user.id))
 
     if task_update.title is not None:
@@ -91,7 +91,7 @@ def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+) -> None:
     task = get_task_or_404(task_id, db, int(current_user.id))
     db.delete(task)
     db.commit()

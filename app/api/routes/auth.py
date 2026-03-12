@@ -17,7 +17,7 @@ router = APIRouter(tags=["auth"])
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
-):
+) -> dict[str, str]:
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         logger.warning("Failed login attempt with email: %s", form_data.username)
@@ -28,6 +28,6 @@ def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
-def read_me(current_user: User = Depends(get_current_user)):
+def read_me(current_user: User = Depends(get_current_user)) -> User:
     logger.info("Fetching user information for email: %s", current_user.email)
     return current_user
