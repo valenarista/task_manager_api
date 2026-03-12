@@ -16,6 +16,32 @@ def test_root_available(client):
     assert response.json() == {"message": "API is running"}
 
 
+def test_error_contract_for_duplicate_email(client):
+    payload = {"email": "contract@example.com", "password": "StrongPass1"}
+    first = client.post("/api/v1/users", json=payload)
+    assert first.status_code == 200, first.text
+
+    second = client.post("/api/v1/users", json=payload)
+    assert second.status_code == 409, second.text
+    data = second.json()
+    assert data["detail"] == "Email already registered"
+    assert data["error"]["code"] == "email_already_registered"
+    assert data["error"]["message"] == "Email already registered"
+
+
+def test_error_contract_for_validation_error(client):
+    response = client.post(
+        "/api/v1/users",
+        json={"email": "bad-email", "password": "123"},
+    )
+    assert response.status_code == 422, response.text
+    data = response.json()
+    assert data["detail"] == "Validation failed"
+    assert data["error"]["code"] == "validation_error"
+    assert data["error"]["message"] == "Validation failed"
+    assert isinstance(data["error"]["details"], list)
+
+
 @pytest.mark.asyncio
 async def test_log_requests_middleware_reraises_exceptions():
     request = Request(

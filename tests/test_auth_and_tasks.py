@@ -379,7 +379,8 @@ def test_create_user_handles_integrity_error_with_409():
         create_user_route(user=user, db=db)
 
     assert exc_info.value.status_code == 409
-    assert exc_info.value.detail == "Email already registered"
+    assert exc_info.value.detail["code"] == "email_already_registered"
+    assert exc_info.value.detail["message"] == "Email already registered"
     assert db.rollback_called is True
 
 

@@ -21,7 +21,10 @@ def login(
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         logger.warning("Failed login attempt with email: %s", form_data.username)
-        raise HTTPException(status_code=400, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "invalid_credentials", "message": "Invalid email or password"},
+        )
 
     access_token = create_access_token(data={"sub": user.email})
     logger.info("User logged in successfully with email: %s", user.email)

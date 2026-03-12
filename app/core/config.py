@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,4 +11,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
 
-settings = Settings() # type: ignore
+if TYPE_CHECKING:
+    settings = Settings(
+        DATABASE_URL="",
+        SECRET_KEY="",
+        ALGORITHM="",
+        ACCESS_TOKEN_EXPIRE_MINUTES=0,
+    )
+else:
+    settings = Settings()

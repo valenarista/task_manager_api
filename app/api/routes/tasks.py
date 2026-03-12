@@ -16,7 +16,10 @@ def get_task_or_404(task_id: int, db: Session, user_id: int) -> Task:
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if task is None:
         logger.warning("Task not found: task_id=%s user_id=%s", task_id, user_id)
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "task_not_found", "message": "Task not found"},
+        )
     return task
 
 @router.post("", response_model=TaskResponse)
