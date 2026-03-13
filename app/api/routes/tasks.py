@@ -1,9 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
+from app.core.errors import task_not_found_error
 from app.db.session import get_db
 from app.models.task import Task
 from app.models.user import User
@@ -16,13 +17,26 @@ def get_task_or_404(task_id: int, db: Session, user_id: int) -> Task:
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if task is None:
         logger.warning("Task not found: task_id=%s user_id=%s", task_id, user_id)
-        raise HTTPException(
-            status_code=404,
-            detail={"code": "task_not_found", "message": "Task not found"},
-        )
+        raise task_not_found_error()
     return task
 
-@router.post("", response_model=TaskResponse)
+@router.post(
+    "",
+    response_model=TaskResponse,
+    responses={
+        401: {
+            "description": "Not authenticated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "http_401", "message": "Not authenticated"},
+                        "detail": "Not authenticated",
+                    }
+                }
+            },
+        }
+    },
+)
 def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db),
@@ -39,7 +53,44 @@ def create_task(
     logger.info("Task created: user_id=%s title=%s", current_user.id, task.title)
     return db_task
 
-@router.get("", response_model=TaskListResponse)
+@router.get(
+    "",
+    response_model=TaskListResponse,
+    responses={
+        401: {
+            "description": "Not authenticated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "http_401", "message": "Not authenticated"},
+                        "detail": "Not authenticated",
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation failed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "code": "validation_error",
+                            "message": "Validation failed",
+                            "details": [
+                                {
+                                    "loc": ["query", "limit"],
+                                    "msg": "Input should be less than or equal to 100",
+                                    "type": "less_than_equal",
+                                }
+                            ],
+                        },
+                        "detail": "Validation failed",
+                    }
+                }
+            },
+        },
+    },
+)
 def list_tasks(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
@@ -68,7 +119,34 @@ def list_tasks(
         "limit": limit,
     }
 
-@router.patch("/{task_id}", response_model=TaskResponse)
+@router.patch(
+    "/{task_id}",
+    response_model=TaskResponse,
+    responses={
+        401: {
+            "description": "Not authenticated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "http_401", "message": "Not authenticated"},
+                        "detail": "Not authenticated",
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Task not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "task_not_found", "message": "Task not found"},
+                        "detail": "Task not found",
+                    }
+                }
+            },
+        },
+    },
+)
 def update_task(
     task_id: int,
     task_update: TaskUpdate,
@@ -89,7 +167,34 @@ def update_task(
     logger.info("Task updated: task_id=%s user_id=%s", task.id, current_user.id)
     return task
 
-@router.delete("/{task_id}", status_code=204)
+@router.delete(
+    "/{task_id}",
+    status_code=204,
+    responses={
+        401: {
+            "description": "Not authenticated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "http_401", "message": "Not authenticated"},
+                        "detail": "Not authenticated",
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Task not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "task_not_found", "message": "Task not found"},
+                        "detail": "Task not found",
+                    }
+                }
+            },
+        },
+    },
+)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),

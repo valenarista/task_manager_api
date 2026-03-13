@@ -25,6 +25,8 @@ Backend REST API for task management built with FastAPI, PostgreSQL, SQLAlchemy,
 - [Getting Started](#getting_started)
 - [Running the tests](#-running-the-tests)
 - [Usage](#usage)
+- [Error Contract](#error-contract)
+- [Error Reference](#error-reference)
 - [Deployment](#deployment)
 - [Built Using](#built_using)
 - [Authors](#authors)
@@ -231,6 +233,49 @@ Example response:
   "limit": 10
 }
 ```
+
+## Error Contract
+
+All API errors follow a normalized JSON shape:
+
+```json
+{
+  "error": {
+    "code": "string_code",
+    "message": "Human readable message",
+    "details": []
+  },
+  "detail": "Human readable message"
+}
+```
+
+`details` is optional and is mainly used for validation errors (`422`).
+
+Common examples:
+
+- Authentication missing: `error.code = "http_401"`
+- Invalid token/credentials: `error.code = "invalid_credentials"`
+- Duplicate email: `error.code = "email_already_registered"`
+- Missing task: `error.code = "task_not_found"`
+- Validation error: `error.code = "validation_error"`
+- Unhandled server error: `error.code = "internal_error"`
+
+## Error Reference
+
+Main endpoint/status mapping:
+
+| Endpoint | Status | Error Code | Message |
+|---|---:|---|---|
+| `POST /api/v1/users` | `409` | `email_already_registered` | `Email already registered` |
+| `POST /api/v1/users` | `422` | `validation_error` | `Validation failed` |
+| `POST /api/v1/login` | `400` | `invalid_credentials` | `Invalid email or password` |
+| `POST /api/v1/login` | `422` | `validation_error` | `Validation failed` |
+| `GET /api/v1/me` | `401` | `http_401` or `invalid_credentials` | `Not authenticated` or `Could not validate credentials` |
+| `GET /api/v1/tasks` | `401` | `http_401` | `Not authenticated` |
+| `GET /api/v1/tasks` | `422` | `validation_error` | `Validation failed` |
+| `PATCH /api/v1/tasks/{task_id}` | `404` | `task_not_found` | `Task not found` |
+| `DELETE /api/v1/tasks/{task_id}` | `404` | `task_not_found` | `Task not found` |
+| Any endpoint | `500` | `internal_error` | `Internal server error` |
 
 ## 🚀 Deployment <a name = "deployment"></a>
 
