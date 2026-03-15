@@ -27,6 +27,7 @@ Backend REST API for task management built with FastAPI, PostgreSQL, SQLAlchemy,
 - [Usage](#usage)
 - [Error Contract](#error-contract)
 - [Error Reference](#error-reference)
+- [Contributing](#contributing)
 - [Deployment](#deployment)
 - [Built Using](#built_using)
 - [Authors](#authors)
@@ -185,7 +186,7 @@ The script runs:
 
 - `ruff check .`
 - `mypy app`
-- `pytest --cov=app --cov-report=term-missing --cov-fail-under=85`
+- `pytest --cov=app --cov-report=term-missing --cov-fail-under=90`
 - `pre-commit run --all-files`
 
 Optional (skip hooks):
@@ -199,6 +200,26 @@ Install git hooks once:
 ```bash
 pre-commit install
 ```
+
+## Contributing
+
+Local quality baseline before opening a PR:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\quality-check.ps1 -SkipPreCommit
+```
+
+This project expects:
+
+- `ruff check .`
+- `mypy app`
+- `pytest --cov=app --cov-report=term-missing --cov-fail-under=90`
+
+PRs use the repository template at `.github/pull_request_template.md` with a quality checklist.
+
+Recommended branch protection on GitHub:
+
+- Require the `CI / quality` check to pass before merge.
 
 ## 🎈 Usage <a name="usage"></a>
 

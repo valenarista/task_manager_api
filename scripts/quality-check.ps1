@@ -1,5 +1,6 @@
 param(
-    [switch]$SkipPreCommit
+    [switch]$SkipPreCommit,
+    [int]$CoverageMin = 90
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,7 +51,7 @@ Invoke-Step "Running mypy..." {
 }
 
 Invoke-Step "Running tests with coverage..." {
-    & $venvPython -m pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+    & $venvPython -m pytest --cov=app --cov-report=term-missing --cov-fail-under=$CoverageMin
 }
 
 if (-not $SkipPreCommit) {
