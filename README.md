@@ -27,6 +27,7 @@ Backend REST API for task management built with FastAPI, PostgreSQL, SQLAlchemy,
 - [Usage](#usage)
 - [Error Contract](#error-contract)
 - [Error Reference](#error-reference)
+- [Observability](#observability)
 - [Contributing](#contributing)
 - [Deployment](#deployment)
 - [Built Using](#built_using)
@@ -297,6 +298,15 @@ Main endpoint/status mapping:
 | `PATCH /api/v1/tasks/{task_id}` | `404` | `task_not_found` | `Task not found` |
 | `DELETE /api/v1/tasks/{task_id}` | `404` | `task_not_found` | `Task not found` |
 | Any endpoint | `500` | `internal_error` | `Internal server error` |
+
+## Observability
+
+The API uses request-scoped tracing with `X-Request-ID`.
+
+- If the client sends `X-Request-ID`, the API preserves it.
+- If the client does not send it, the API generates one.
+- Every response includes `X-Request-ID` (success and error).
+- Server logs include `request_id` so application logs and client errors can be correlated.
 
 ## 🚀 Deployment <a name = "deployment"></a>
 

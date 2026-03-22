@@ -34,6 +34,15 @@ def test_root_available(client):
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "API is running"}
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
+
+
+def test_request_id_header_is_preserved(client):
+    request_id = "req-1234-observability"
+    response = client.get("/", headers={"X-Request-ID": request_id})
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == request_id
 
 
 def test_error_contract_for_duplicate_email(client):
@@ -44,6 +53,8 @@ def test_error_contract_for_duplicate_email(client):
     second = client.post("/api/v1/users", json=payload)
     assert second.status_code == 409, second.text
     data = second.json()
+    assert "X-Request-ID" in second.headers
+    assert second.headers["X-Request-ID"]
     assert data["detail"] == "Email already registered"
     assert data["error"]["code"] == "email_already_registered"
     assert data["error"]["message"] == "Email already registered"
@@ -55,6 +66,8 @@ def test_error_contract_for_validation_error(client):
         json={"email": "bad-email", "password": "123"},
     )
     assert response.status_code == 422, response.text
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
     data = response.json()
     assert data["detail"] == "Validation failed"
     assert data["error"]["code"] == "validation_error"
@@ -67,6 +80,8 @@ def test_error_contract_for_validation_error(client):
 def test_error_contract_for_not_authenticated(client):
     response = client.get("/api/v1/tasks")
     assert response.status_code == 401, response.text
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
     data = response.json()
     assert data["detail"] == "Not authenticated"
     assert data["error"]["code"] == "http_401"
@@ -87,6 +102,8 @@ def test_error_contract_for_login_invalid_credentials(client):
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     assert response.status_code == 400, response.text
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
     data = response.json()
     assert data["detail"] == "Invalid email or password"
     assert data["error"]["code"] == "invalid_credentials"
@@ -102,6 +119,8 @@ def test_error_contract_for_task_not_found(client):
         headers=auth_headers,
     )
     assert response.status_code == 404, response.text
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
     data = response.json()
     assert data["detail"] == "Task not found"
     assert data["error"]["code"] == "task_not_found"
@@ -114,12 +133,16 @@ def test_internal_server_error_does_not_leak_details(client, monkeypatch, caplog
 
     monkeypatch.setattr(users_route_module, "hash_password", boom)
 
+    request_id = "req-500-test"
+
     with TestClient(app, raise_server_exceptions=False) as safe_client:
         response = safe_client.post(
             "/api/v1/users",
             json={"email": "boom@example.com", "password": "StrongPass1"},
+            headers={"X-Request-ID": request_id},
         )
     assert response.status_code == 500, response.text
+    assert response.headers["X-Request-ID"] == request_id
     data = response.json()
     assert data["detail"] == "Internal server error"
     assert data["error"]["code"] == "internal_error"
