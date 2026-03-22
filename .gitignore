@@ -27,6 +27,7 @@ pg_data/
 pgdata/
 alembic/versions/__pycache__/
 *.log
+CLAUDE.md
 
 # Test database
 test.db

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
 
 if TYPE_CHECKING:

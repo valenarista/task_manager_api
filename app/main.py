@@ -5,9 +5,11 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.core.config import settings
 from app.core.errors import build_error_payload, resolve_http_error
 from app.core.logging_config import clear_request_id, get_request_id, set_request_id, setup_logging
 
@@ -15,6 +17,15 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 REQUEST_ID_HEADER = "X-Request-ID"
 
 
@@ -93,9 +104,10 @@ async def log_requests(
     except Exception:
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.exception(
-            "request_failed method=%s path=%s status_code=500 duration_ms=%.2f",
+            "request_failed method=%s path=%s status_code=%s duration_ms=%.2f",
             request.method,
             request.url.path,
+            500,
             duration_ms,
         )
         clear_request_id()
