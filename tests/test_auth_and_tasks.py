@@ -418,3 +418,146 @@ def test_create_user_reraises_unexpected_exception():
         create_user_route(user=user, db=db)
 
     assert db.rollback_called is True
+
+
+def test_login_returns_both_tokens(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    r = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_refresh_with_valid_token(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    login_response = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_response.status_code == 200
+    refresh_token = login_response.json()["refresh_token"]
+
+    r = client.post(
+        "/api/v1/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "access_token" in data
+    assert data["refresh_token"] == refresh_token
+    assert data["token_type"] == "bearer"
+
+
+def test_refresh_with_invalid_token_returns_401(client):
+    r = client.post(
+        "/api/v1/refresh",
+        json={"refresh_token": "invalid_token_value"},
+    )
+    assert r.status_code == 401, r.text
+    data = r.json()
+    assert data["error"]["code"] == "refresh_token_invalid"
+
+
+def test_logout_revokes_token(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    login_response = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_response.status_code == 200
+    refresh_token = login_response.json()["refresh_token"]
+
+    r = client.post(
+        "/api/v1/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["message"] == "Successfully logged out"
+
+
+def test_logout_with_invalid_token_returns_401(client):
+    r = client.post(
+        "/api/v1/logout",
+        json={"refresh_token": "invalid_token_value"},
+    )
+    assert r.status_code == 401, r.text
+    data = r.json()
+    assert data["error"]["code"] == "refresh_token_invalid"
+
+
+def test_refresh_token_not_usable_after_logout(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    login_response = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_response.status_code == 200
+    refresh_token = login_response.json()["refresh_token"]
+
+    logout_response = client.post(
+        "/api/v1/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert logout_response.status_code == 200
+
+    r = client.post(
+        "/api/v1/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert r.status_code == 401, r.text
+    data = r.json()
+    assert data["error"]["code"] == "refresh_token_invalid"
+
+
+def test_new_access_token_from_refresh_is_valid(client):
+    email = unique_email()
+    password = "StrongPass1"
+
+    client.post("/api/v1/users", json={"email": email, "password": password})
+
+    login_response = client.post(
+        "/api/v1/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_response.status_code == 200
+    refresh_token = login_response.json()["refresh_token"]
+
+    refresh_response = client.post(
+        "/api/v1/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_response.status_code == 200
+    new_access_token = refresh_response.json()["access_token"]
+
+    auth_headers = {"Authorization": f"Bearer {new_access_token}"}
+    r = client.get("/api/v1/me", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["email"] == email

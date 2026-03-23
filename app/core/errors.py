@@ -9,6 +9,8 @@ TASK_NOT_FOUND_CODE = "task_not_found"
 TASK_NOT_FOUND_MESSAGE = "Task not found"
 EMAIL_ALREADY_REGISTERED_CODE = "email_already_registered"
 EMAIL_ALREADY_REGISTERED_MESSAGE = "Email already registered"
+REFRESH_TOKEN_INVALID_CODE = "refresh_token_invalid"
+REFRESH_TOKEN_INVALID_MESSAGE = "Invalid or expired refresh token"
 
 
 def api_error(
@@ -53,6 +55,14 @@ def email_already_registered_error() -> HTTPException:
         status_code=409,
         code=EMAIL_ALREADY_REGISTERED_CODE,
         message=EMAIL_ALREADY_REGISTERED_MESSAGE,
+    )
+
+
+def refresh_token_invalid_error() -> HTTPException:
+    return api_error(
+        status_code=401,
+        code=REFRESH_TOKEN_INVALID_CODE,
+        message=REFRESH_TOKEN_INVALID_MESSAGE,
     )
 
 

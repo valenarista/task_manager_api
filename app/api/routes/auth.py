@@ -5,17 +5,31 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
-from app.core.errors import login_invalid_credentials_error
-from app.core.security import create_access_token, verify_password
+from app.core.errors import login_invalid_credentials_error, refresh_token_invalid_error
+from app.core.security import (
+    create_access_token,
+    create_refresh_token_in_db,
+    revoke_refresh_token,
+    validate_refresh_token,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.auth import (
+    LogoutRequest,
+    MessageResponse,
+    RefreshTokenRequest,
+    TokenResponse,
+)
 from app.schemas.user import UserResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["auth"])
 
+
 @router.post(
     "/login",
+    response_model=TokenResponse,
     responses={
         400: {
             "description": "Invalid credentials",
@@ -56,16 +70,96 @@ router = APIRouter(tags=["auth"])
 )
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-) -> dict[str, str]:
+    db: Session = Depends(get_db),
+) -> TokenResponse:
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         logger.warning("Failed login attempt with email: %s", form_data.username)
         raise login_invalid_credentials_error()
 
     access_token = create_access_token(data={"sub": user.email})
+    refresh_token = create_refresh_token_in_db(db, user.id)
+
     logger.info("User logged in successfully with email: %s", user.email)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    responses={
+        401: {
+            "description": "Invalid or expired refresh token",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "code": "refresh_token_invalid",
+                            "message": "Invalid or expired refresh token",
+                        },
+                        "detail": "Invalid or expired refresh token",
+                    }
+                }
+            },
+        },
+    },
+)
+def refresh(
+    request: RefreshTokenRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    db_token = validate_refresh_token(db, request.refresh_token)
+    if not db_token:
+        logger.warning("Invalid refresh token attempt")
+        raise refresh_token_invalid_error()
+
+    user = db_token.user
+    access_token = create_access_token(data={"sub": user.email})
+
+    logger.info("Token refreshed for user: %s", user.email)
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=request.refresh_token,
+        token_type="bearer",
+    )
+
+
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    responses={
+        401: {
+            "description": "Invalid refresh token",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "code": "refresh_token_invalid",
+                            "message": "Invalid or expired refresh token",
+                        },
+                        "detail": "Invalid or expired refresh token",
+                    }
+                }
+            },
+        },
+    },
+)
+def logout(
+    request: LogoutRequest,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    revoked = revoke_refresh_token(db, request.refresh_token)
+    if not revoked:
+        logger.warning("Logout attempt with invalid refresh token")
+        raise refresh_token_invalid_error()
+
+    logger.info("User logged out successfully")
+    return MessageResponse(message="Successfully logged out")
+
 
 @router.get(
     "/me",

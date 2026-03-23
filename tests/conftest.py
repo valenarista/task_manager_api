@@ -12,10 +12,16 @@ os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
 os.environ.setdefault("SECRET_KEY", "test_secret_key")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "7")
 
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models.refresh_token import RefreshToken
+from app.models.task import Task
+from app.models.user import User
+
+_ = (User, Task, RefreshToken)
 
 engine = create_engine(
     TEST_DB_URL,
